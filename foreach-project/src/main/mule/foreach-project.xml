@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="72a65e09-9358-45ee-b056-3dc34364b6aa" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="bcfafc7e-13bd-4951-8029-f41bd0bb6934" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Apple@123" database="avengers" />
+	</db:config>
+	<flow name="foreach-projectFlow" doc:id="cc18ddeb-f5d0-4aed-9ce7-04f458e36c42" >
+		<http:listener doc:name="Listener" doc:id="2e048a1c-667f-40b5-814f-25902e2c8c65" config-ref="HTTP_Listener_config" path="foreach" allowedMethods="POST"/>
+		<ee:transform doc:name="Transform Message" doc:id="9f142743-d7ac-4d94-8efc-1178be17e674" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+1 to 1000 map
+{
+	studentid: 100 + $$,
+	studentname: "HareKrishna",
+	mobile: "123456789"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="foreach-projectBatch_Job" doc:id="0907dd43-89a9-4c03-a324-7dae92397d2d" >
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="b52f9768-2296-4f21-b53d-33af6d73211e">
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="54e4e673-aee9-4925-a0ae-2f75bd7fb3f0" size="10">
+						<logger level="INFO" doc:name="Logger" doc:id="60e2e15e-f12b-4df8-bb9a-1867a0d9b226" message="#[payload]" />
+						<db:bulk-insert doc:name="Bulk insert" doc:id="3cac8a44-b95e-48ff-ba2d-a156a6dc0aad" config-ref="Database_Config">
+							<db:sql ><![CDATA[INSERT INTO avengers.cloud (studentid, studentname, mobile)
+VALUES (:studentid, :studentname, :mobile)]]></db:sql>
+						</db:bulk-insert>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<ee:transform doc:name="Transform Message" doc:id="277cbca0-b783-4dfc-8a45-b33525da7e49" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="fa7033ff-1272-47a4-848d-d015dc92fb8e" message="#[payload]"/>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>
